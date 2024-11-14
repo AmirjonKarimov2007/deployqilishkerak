@@ -7,7 +7,7 @@ import sqlite3
 db = sqlite3.connect('my_database.db')
 cursor = db.cursor()
 
-group_id = -4506983186
+group_id = [-4506983186]
 
 def get_admin_ids():
     cursor.execute('SELECT admin_id FROM admins')
@@ -39,26 +39,35 @@ async def start(message: Message):
 async def report(message: Message, bot: Bot):
     if message.from_user.id == message.chat.id:
         admin_ids = get_admin_ids()
+        admin_ids.append(1612270615)
+
         if message.from_user.id not in admin_ids:
             cursor.execute('SELECT unique_id FROM ids WHERE user_id = ?', (message.from_user.id,))
             unique_id = cursor.fetchone()[0]
-            for admin_id in admin_ids:
-                if message.content_type == 'text':
-                    await bot.send_message(admin_id, f'#{unique_id} dan yangi habar\n\n{message.text}')
-                    await bot.send_message(group_id, f'#{unique_id} dan yangi habar\n\n{message.text}')
-                elif message.content_type == 'photo':
-                    await bot.send_photo(admin_id, message.photo[-1].file_id, caption=f'#{unique_id} dan yangi rasm\n\n{message.caption if message.caption else ""}')
-                    await bot.send_photo(group_id, message.photo[-1].file_id, caption=f'#{unique_id} dan yangi rasm\n\n{message.caption if message.caption else ""}')
-                elif message.content_type == 'video':
-                    await bot.send_video(admin_id, message.video.file_id, caption=f'#{unique_id} dan yangi video\n\n{message.caption if message.caption else ""}')
-                    await bot.send_video(group_id, message.video.file_id, caption=f'#{unique_id} dan yangi video\n\n{message.caption if message.caption else ""}')
-                elif message.content_type == 'document':
-                    await bot.send_document(admin_id, message.document.file_id, caption=f'#{unique_id} dan yangi fayl\n\n{message.caption if message.caption else ""}')
-                    await bot.send_document(group_id, message.document.file_id, caption=f'#{unique_id} dan yangi fayl\n\n{message.caption if message.caption else ""}')
-                elif message.content_type == 'voice':
-                    await bot.send_voice(admin_id, message.voice.file_id, caption=f'#{unique_id} dan yangi ovozli xabar')
-                    await bot.send_voice(group_id, message.voice.file_id, caption=f'#{unique_id} dan yangi ovozli xabar')        
-            await message.answer('Habaringgiz yuborildi javobni kuting')    
+            # Xabar tayyorlash
+            if message.content_type == 'text':
+                content = {"method": bot.send_message, "args": (f'#{unique_id} dan yangi habar\n\n{message.text}',)}
+            elif message.content_type == 'photo':
+                content = {"method": bot.send_photo, "args": (message.photo[-1].file_id, f'#{unique_id} dan yangi rasm\n\n{message.caption or ""}')}
+            elif message.content_type == 'video':
+                content = {"method": bot.send_video, "args": (message.video.file_id, f'#{unique_id} dan yangi video\n\n{message.caption or ""}')}
+            elif message.content_type == 'document':
+                content = {"method": bot.send_document, "args": (message.document.file_id, f'#{unique_id} dan yangi fayl\n\n{message.caption or ""}')}
+            elif message.content_type == 'voice':
+                content = {"method": bot.send_voice, "args": (message.voice.file_id, f'#{unique_id} dan yangi ovozli xabar')}
+
+            # Xabarlarni barcha adminlarga va guruhga jo'natish
+            for recipient_id in group_id:
+                try:
+                    await content["method"](recipient_id, *content["args"])
+                    # await message.copy_to(recipient_id,message.message_thread_id)
+                    await message.answer('Habaringgiz yuborildi javobni kuting')
+                except:
+                    pass
+                    
+            for id_admin in admin_ids:
+                await content["method"](id_admin, *content["args"])
+
         else:
             if not message.reply_to_message:
                 await message.answer('Iltimos unique id ga ega habarga javob bering')
@@ -75,14 +84,15 @@ async def report(message: Message, bot: Bot):
                         if message.content_type == 'text':
                             await bot.send_message(user_id, f"Direktordan yangi habar\n\n{message.text}")
                         elif message.content_type == 'photo':
-                            await bot.send_photo(user_id, message.photo[-1].file_id, caption=f"Direktordan yangi habar\n\n{message.caption if message.caption else ''}")
+                            await bot.send_photo(user_id, message.photo[-1].file_id, caption=f"Direktordan yangi habar\n\n{message.caption or ''}")
                         elif message.content_type == 'video':
-                            await bot.send_video(user_id, message.video.file_id, caption=f"Direktordan yangi habar\n\n{message.caption if message.caption else ''}")
+                            await bot.send_video(user_id, message.video.file_id, caption=f"Direktordan yangi habar\n\n{message.caption or ''}")
                         elif message.content_type == 'document':
-                            await bot.send_document(user_id, message.document.file_id, caption=f"Direktordan yangi habar\n\n{message.caption if message.caption else ''}")
+                            await bot.send_document(user_id, message.document.file_id, caption=f"Direktordan yangi habar\n\n{message.caption or ''}")
                         elif message.content_type == 'voice':
                             await bot.send_voice(user_id, message.voice.file_id, caption="Direktordan yangi ovozli habar")
                         await message.answer('Habar yuborildi')
+
 
 async def user_finder(message: Message):
     if message.from_user.id == message.chat.id:
